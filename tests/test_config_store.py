@@ -80,5 +80,5 @@ def test_factory_builds_orchestrator_from_config_store() -> None:
         use_rag=False,
     )
 
-    assert "=== STATIC PART (CACHE-FRIENDLY) ===" in result.prompt
+    assert "=== STATIC PART (CACHE-FRIENDLY) ===" not in result.prompt
     assert "Role:\nArchitect" in result.prompt
