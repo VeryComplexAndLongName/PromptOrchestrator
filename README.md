@@ -62,6 +62,99 @@ python simulations/conversation_simulation_test.py --debug  # Enable debug heade
 - `ollama`: local Ollama endpoint via `/api/generate`
 - `custom`: bring your own client implementing `generate(prompt, model, max_tokens, temperature)`
 
+## Integration with RagOrchestrator
+
+PromptOrchestrator can work directly with [RagOrchestrator](https://github.com/VeryComplexAndLongName/RagOrchestrator) as a retrieval backend.
+
+Why this pairing works well:
+
+- PromptOrchestrator controls prompt layout, context compaction, safety checks, and token budgets.
+- RagOrchestrator handles indexing, embedding, and retrieval from vector storage.
+- Both projects use a compatible `DocChunk` shape (`id`, `content`, `score`, `metadata`).
+
+### Option 1: Use RagOrchestrator compatibility adapter (recommended)
+
+RagOrchestrator includes `PromptStyleRAGProviderAdapter`, which exposes the exact interface PromptOrchestrator expects (`retrieve(query, limit)`).
+
+```python
+from prompt_orchestrator import (
+    LocalTTLCacheBackend,
+    OrchestratorSettings,
+    PromptConfig,
+    PromptContextManager,
+    PromptOrchestrator,
+    SummaryLLM,
+)
+
+from rag_orchestrator import HashEmbedder, create_provider
+from rag_orchestrator.rag import PromptStyleRAGProviderAdapter
+
+# RagOrchestrator side: provider + embedder
+provider = create_provider(kind="sqlite", db_path="rag.db", table="chunks")
+embedder = HashEmbedder(dimensions=256)
+
+# Adapter gives PromptOrchestrator-compatible retrieve(query, limit)
+rag_provider = PromptStyleRAGProviderAdapter(provider=provider, embedder=embedder)
+
+config = PromptConfig(
+    system_prompt="You are a grounded assistant.",
+    role="Engineer",
+    task="Answer using retrieved context.",
+    constraints=["Cite retrieved facts", "Avoid unsupported claims"],
+    output_format="Markdown",
+    examples=[],
+)
+
+settings = OrchestratorSettings(use_rag_default=True, rag_limit=4)
+cache = LocalTTLCacheBackend(default_ttl_seconds=settings.cache_ttl_seconds)
+context_manager = PromptContextManager(cache, settings, SummaryLLM())
+
+orchestrator = PromptOrchestrator(
+    config=config,
+    context_manager=context_manager,
+    rag_provider=rag_provider,
+    settings=settings,
+)
+
+result = orchestrator.build_for_request(
+    session_id="rag-integration-demo",
+    user_message="How does deduplication work in our retrieval pipeline?",
+    use_rag=True,
+)
+
+print(result.prompt)
+```
+
+### Option 2: Wrap RAGOrchestrator.search(...) in a thin adapter
+
+If you already use a full `RAGOrchestrator` pipeline (ingest + search), expose it as a `RAGProvider` for PromptOrchestrator:
+
+```python
+from prompt_orchestrator.rag.base import RAGProvider
+from prompt_orchestrator.context.state import DocChunk
+
+from rag_orchestrator import RAGOrchestrator
+
+
+class RagOrchestratorProvider(RAGProvider):
+    def __init__(self, orchestrator: RAGOrchestrator) -> None:
+        self._orchestrator = orchestrator
+
+    def retrieve(self, query: str, limit: int) -> list[DocChunk]:
+        rows = self._orchestrator.search(query_text=query, top_k=limit)
+        return [
+            DocChunk(
+                id=row.chunk.id,
+                content=row.chunk.text,
+                score=row.score,
+                metadata={str(k): str(v) for k, v in row.chunk.metadata.items()},
+            )
+            for row in rows
+        ]
+```
+
+Use this adapter as `rag_provider` in `PromptOrchestrator(...)` and set `use_rag=True` when building requests.
+
 ## Simulations Folder
 
 Simulation assets are located in [simulations](simulations):
