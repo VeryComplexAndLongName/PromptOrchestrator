@@ -1,0 +1,25 @@
+{
+  "description": "Standard conversation turns for testing recent window, summary compaction, and prompt stats.",
+  "turns": [
+    {
+      "user": "Привет, меня зовут Алексей.",
+      "assistant": "Привет, Алексей. Запомнил имя."
+    },
+    {
+      "user": "Я использую Redis и Qdrant, хочу стабильный prompt pipeline.",
+      "assistant": "Понял, у тебя Redis + Qdrant и цель собрать стабильный prompt pipeline."
+    },
+    {
+      "user": "Нужно ограничивать размер контекста и не терять важные факты.",
+      "assistant": "Ок, применим summary + recent window + token limits."
+    },
+    {
+      "user": "Добавь проверки на prompt injection и безопасность.",
+      "assistant": "Добавим safety-анализ и sanitization при рисках."
+    },
+    {
+      "user": "Теперь покажи, как это работает при длинной истории.",
+      "assistant": "Длинная история будет сжиматься через summary и ограничение recent сообщений."
+    }
+  ]
+}

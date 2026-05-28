@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "prompt-orchestrator"
+version = "0.1.0"
+description = "Structured prompt orchestration with cache, safety, and analyzer layers"
+readme = { file = "README.md", content-type = "text/markdown" }
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  { name = "Alexander Ivanov", email = "VeryComplexAndLongName@gmail.com" },
+]
+keywords = [
+  "llm",
+  "prompt",
+  "orchestration",
+  "rag",
+  "safety",
+  "tokenization",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Operating System :: OS Independent",
+  "Topic :: Software Development :: Libraries",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = [
+  "openai>=1.40.0",
+  "pydantic>=2.7.0",
+  "tiktoken>=0.7.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/VeryComplexAndLongName/PromptOrchestrator"
+Repository = "https://github.com/VeryComplexAndLongName/PromptOrchestrator.git"
+Issues = "https://github.com/VeryComplexAndLongName/PromptOrchestrator/issues"
+Changelog = "https://github.com/VeryComplexAndLongName/PromptOrchestrator/blob/main/CHANGES.md"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+]
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["prompt_orchestrator*"]
