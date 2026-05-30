@@ -62,19 +62,19 @@ python simulations/conversation_simulation_test.py --debug  # Enable debug heade
 - `ollama`: local Ollama endpoint via `/api/generate`
 - `custom`: bring your own client implementing `generate(prompt, model, max_tokens, temperature)`
 
-## Integration with RagOrchestrator
+## Integration with RagflowOrchestrator
 
-PromptOrchestrator can work directly with [RagOrchestrator](https://github.com/VeryComplexAndLongName/RagOrchestrator) as a retrieval backend.
+PromptOrchestrator can work directly with [RagflowOrchestrator](https://github.com/VeryComplexAndLongName/RagOrchestrator) as a retrieval backend.
 
 Why this pairing works well:
 
 - PromptOrchestrator controls prompt layout, context compaction, safety checks, and token budgets.
-- RagOrchestrator handles indexing, embedding, and retrieval from vector storage.
+- RagflowOrchestrator handles indexing, embedding, and retrieval from vector storage.
 - Both projects use a compatible `DocChunk` shape (`id`, `content`, `score`, `metadata`).
 
-### Option 1: Use RagOrchestrator compatibility adapter (recommended)
+### Option 1: Use RagflowOrchestrator compatibility adapter (recommended)
 
-RagOrchestrator includes `PromptStyleRAGProviderAdapter`, which exposes the exact interface PromptOrchestrator expects (`retrieve(query, limit)`).
+RagflowOrchestrator includes `PromptStyleRAGProviderAdapter`, which exposes the exact interface PromptOrchestrator expects (`retrieve(query, limit)`).
 
 ```python
 from prompt_orchestrator import (
@@ -86,10 +86,10 @@ from prompt_orchestrator import (
     SummaryLLM,
 )
 
-from rag_orchestrator import HashEmbedder, create_provider
-from rag_orchestrator.rag import PromptStyleRAGProviderAdapter
+from ragflow_orchestrator import HashEmbedder, create_provider
+from ragflow_orchestrator.rag import PromptStyleRAGProviderAdapter
 
-# RagOrchestrator side: provider + embedder
+# RagflowOrchestrator side: provider + embedder
 provider = create_provider(kind="sqlite", db_path="rag.db", table="chunks")
 embedder = HashEmbedder(dimensions=256)
 
