@@ -5,10 +5,10 @@ from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
 
+from ..telemetry import telemetry
 from .base_client import SummaryLLMClient
 from .ollama_client import OllamaConfig, OllamaSummaryClient
 from .openai_client import OpenAIConfig, OpenAISummaryClient
-from ..telemetry import telemetry
 
 if TYPE_CHECKING:
     from ..context.state import Message
