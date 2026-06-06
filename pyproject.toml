@@ -46,6 +46,11 @@ Issues = "https://github.com/VeryComplexAndLongName/PromptOrchestrator/issues"
 Changelog = "https://github.com/VeryComplexAndLongName/PromptOrchestrator/blob/main/CHANGES.md"
 
 [project.optional-dependencies]
+otel = [
+  "opentelemetry-api>=1.27.0",
+  "opentelemetry-sdk>=1.27.0",
+  "opentelemetry-exporter-otlp>=1.27.0",
+]
 dev = [
   "pytest>=8.2.0",
 ]

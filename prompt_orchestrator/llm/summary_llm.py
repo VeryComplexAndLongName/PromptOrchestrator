@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from typing import TYPE_CHECKING, Literal
 
 from pydantic import BaseModel, Field
@@ -7,6 +8,7 @@ from pydantic import BaseModel, Field
 from .base_client import SummaryLLMClient
 from .ollama_client import OllamaConfig, OllamaSummaryClient
 from .openai_client import OpenAIConfig, OpenAISummaryClient
+from ..telemetry import telemetry
 
 if TYPE_CHECKING:
     from ..context.state import Message
@@ -35,24 +37,46 @@ class SummaryLLM:
             self.client = OllamaSummaryClient(config=self.config.ollama)
 
     def summarize(self, history: list[Message], prev_summary: str | None = None) -> str:
+        started = time.perf_counter()
         base = prev_summary.strip() + "\n\n" if prev_summary else ""
         transcript = "\n".join(f"{msg.role}: {msg.content}" for msg in history[-30:])
 
-        if self.client is None:
-            # Fallback deterministic summarization without external LLM.
-            compact = " ".join(line.strip() for line in transcript.splitlines() if line.strip())
-            return (base + compact)[:1200]
+        try:
+            if self.client is None:
+                # Fallback deterministic summarization without external LLM.
+                compact = " ".join(line.strip() for line in transcript.splitlines() if line.strip())
+                result = (base + compact)[:1200]
+                telemetry.record_summary_call(
+                    duration_ms=(time.perf_counter() - started) * 1000.0,
+                    provider="none",
+                    status="ok",
+                )
+                return result
 
-        prompt = (
-            "Summarize the dialogue in a compact, factual format.\n"
-            "Keep constraints, decisions, open tasks and user preferences.\n"
-            "Avoid speculation and keep under 180 words.\n\n"
-            f"Previous summary:\n{prev_summary or 'None'}\n\n"
-            f"Dialogue:\n{transcript}"
-        )
-        return self.client.generate(
-            prompt=prompt,
-            model=self.config.model,
-            max_tokens=self.config.max_tokens,
-            temperature=self.config.temperature,
-        ).strip()
+            prompt = (
+                "Summarize the dialogue in a compact, factual format.\n"
+                "Keep constraints, decisions, open tasks and user preferences.\n"
+                "Avoid speculation and keep under 180 words.\n\n"
+                f"Previous summary:\n{prev_summary or 'None'}\n\n"
+                f"Dialogue:\n{transcript}"
+            )
+            result = self.client.generate(
+                prompt=prompt,
+                model=self.config.model,
+                max_tokens=self.config.max_tokens,
+                temperature=self.config.temperature,
+            ).strip()
+            telemetry.record_summary_call(
+                duration_ms=(time.perf_counter() - started) * 1000.0,
+                provider=self.config.provider,
+                status="ok",
+            )
+            return result
+        except Exception as exc:
+            telemetry.record_error("summary", type(exc).__name__)
+            telemetry.record_summary_call(
+                duration_ms=(time.perf_counter() - started) * 1000.0,
+                provider=self.config.provider,
+                status="error",
+            )
+            raise

@@ -18,6 +18,7 @@ from .builder.builder import PromptBuilder
 from .context.manager import PromptContextManager
 from .orchestrator.factory import PromptOrchestratorFactory
 from .orchestrator.orchestrator import OrchestratedPrompt, PromptOrchestrator
+from .telemetry import init_telemetry, shutdown_telemetry
 from .tokenization import TokenCounter
 
 __all__ = [
@@ -47,4 +48,6 @@ __all__ = [
     "SummaryLLM",
     "SummaryLLMConfig",
     "TokenCounter",
+    "init_telemetry",
+    "shutdown_telemetry",
 ]
