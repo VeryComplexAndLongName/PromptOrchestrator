@@ -26,6 +26,87 @@ For development and tests:
 pip install -e .[dev]
 ```
 
+Install with optional OpenTelemetry support:
+
+```bash
+pip install -e .[otel]
+```
+
+## Optional OpenTelemetry + SigNoz
+
+OpenTelemetry is optional. If not installed or not enabled, PromptOrchestrator works as before.
+
+SigNoz is expected to run separately (for example, official SigNoz Docker deployment on `http://localhost:8080`).
+
+Enable OTel (host runtime):
+
+```bash
+ENABLE_OTEL=true
+OTEL_EXPORTER_OTLP_ENDPOINT=localhost:4317
+OTEL_SERVICE_NAME=prompt-orchestrator
+OTEL_SERVICE_NAMESPACE=prompt-stack
+OTEL_DEPLOYMENT_ENVIRONMENT=dev
+```
+
+Required/optional flags summary:
+
+- Start telemetry export (required): set `ENABLE_OTEL=true`
+- Stop telemetry export (required): set `ENABLE_OTEL=false`
+- OTLP destination (optional, used when enabled): `OTEL_EXPORTER_OTLP_ENDPOINT`
+- Resource labels (optional): `OTEL_SERVICE_NAME`, `OTEL_SERVICE_NAMESPACE`, `OTEL_DEPLOYMENT_ENVIRONMENT`, `OTEL_SERVICE_VERSION`
+
+Run local OTel Collector (1 additional container):
+
+```bash
+docker compose -f docker-compose.otel.yml up -d
+```
+
+Disable OTel (host runtime):
+
+```bash
+ENABLE_OTEL=false
+```
+
+Stop local OTel Collector:
+
+```bash
+docker compose -f docker-compose.otel.yml down
+```
+
+Files used:
+
+- `docker-compose.otel.yml`
+- `observability/otel-collector-config.yaml`
+
+Default endpoints:
+
+- SigNoz UI (external): `http://localhost:8080`
+- OTLP gRPC ingest (local collector): `http://localhost:4317`
+- OTLP HTTP ingest (local collector): `http://localhost:4318`
+
+Exposed telemetry (when enabled):
+
+| Telemetry signal name | Description |
+| --- | --- |
+| `prompt_orchestrator.build_for_request` | Trace span for one prompt build request. Includes attribute `session.id`. |
+| `prompt_build_requests_total` | Counter of prompt build attempts. Attributes include `operation=build_for_request` and `status` (`ok`/`error`). |
+| `prompt_errors_total` | Counter of errors by operation and error type. Attributes include `operation` and `error.type`. |
+| `prompt_build_latency_ms` | Histogram of prompt build latency in milliseconds. |
+| `prompt_total_tokens` | Histogram of total token count in the built prompt payload. |
+| `prompt_total_chars` | Histogram of total character count in the built prompt payload. |
+| `prompt_rag_chunks_count` | Histogram of retrieved RAG chunks used in the prompt. |
+| `prompt_warnings_count` | Histogram of analyzer warnings count per build. |
+| `prompt_safety_events_total` | Counter of safety events. Attributes include `severity` and `status`. |
+| `prompt_summary_calls_total` | Counter of summary calls. Attributes include `operation=summary`, `provider`, and `status`. |
+| `prompt_summary_latency_ms` | Histogram of summary call latency in milliseconds. |
+| `prompt.error operation={operation} error_type={error_type}` | OTLP log message emitted on errors (for example in `build_for_request` or `summary`). |
+
+Dashboard template blueprint:
+
+- `observability/signoz-dashboard-prompt-orchestrator.yaml`
+
+Use it as a panel/query blueprint in SigNoz to create a dashboard for prompt build latency, token pressure, RAG payload size, safety events, summary latency, logs, and traces.
+
 ## Configuration Models
 
 - `PromptConfig`: static prompt structure

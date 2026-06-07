@@ -1,0 +1,51 @@
+dashboard:
+  title: PromptOrchestrator Overview
+  description: SigNoz dashboard blueprint for PromptOrchestrator metrics exported through OpenTelemetry.
+  variables:
+    - name: env
+      description: deployment.environment resource attribute
+      default: dev
+    - name: service
+      description: service.name resource attribute
+      default: prompt-orchestrator
+  panels:
+    - title: Build Requests
+      type: time_series
+      unit: req/s
+      query: sum(rate(prompt_build_requests_total{service_name="$service",deployment_environment="$env"}[5m]))
+    - title: Build Errors
+      type: time_series
+      unit: err/s
+      query: sum(rate(prompt_errors_total{service_name="$service",deployment_environment="$env"}[5m])) by (operation)
+    - title: Build Latency P95
+      type: time_series
+      unit: ms
+      query: histogram_quantile(0.95, sum(rate(prompt_build_latency_ms_bucket{service_name="$service",deployment_environment="$env"}[5m])) by (le))
+    - title: Prompt Tokens P50
+      type: time_series
+      unit: tokens
+      query: histogram_quantile(0.50, sum(rate(prompt_total_tokens_bucket{service_name="$service",deployment_environment="$env"}[5m])) by (le))
+    - title: Prompt Chars P50
+      type: time_series
+      unit: chars
+      query: histogram_quantile(0.50, sum(rate(prompt_total_chars_bucket{service_name="$service",deployment_environment="$env"}[5m])) by (le))
+    - title: RAG Chunks per Build
+      type: time_series
+      unit: chunks
+      query: histogram_quantile(0.50, sum(rate(prompt_rag_chunks_count_bucket{service_name="$service",deployment_environment="$env"}[5m])) by (le))
+    - title: Warnings per Build
+      type: time_series
+      unit: warnings
+      query: histogram_quantile(0.95, sum(rate(prompt_warnings_count_bucket{service_name="$service",deployment_environment="$env"}[5m])) by (le))
+    - title: Safety Events
+      type: bar
+      unit: events/s
+      query: sum(rate(prompt_safety_events_total{service_name="$service",deployment_environment="$env"}[5m])) by (severity)
+    - title: Summary Latency P95
+      type: time_series
+      unit: ms
+      query: histogram_quantile(0.95, sum(rate(prompt_summary_latency_ms_bucket{service_name="$service",deployment_environment="$env"}[5m])) by (le, provider))
+  logs:
+    default_query: service.name = "$service" AND deployment.environment = "$env"
+  traces:
+    span_filter: service.name = "$service" and name = "prompt_orchestrator.build_for_request"

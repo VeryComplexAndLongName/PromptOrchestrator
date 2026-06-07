@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prompt-orchestrator"
-version = "0.1.3"
+version = "0.1.4"
 description = "Structured prompt orchestration with cache, safety, and analyzer layers"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
@@ -46,6 +46,11 @@ Issues = "https://github.com/VeryComplexAndLongName/PromptOrchestrator/issues"
 Changelog = "https://github.com/VeryComplexAndLongName/PromptOrchestrator/blob/main/CHANGES.md"
 
 [project.optional-dependencies]
+otel = [
+  "opentelemetry-api>=1.27.0",
+  "opentelemetry-sdk>=1.27.0",
+  "opentelemetry-exporter-otlp>=1.27.0",
+]
 dev = [
   "pytest>=8.2.0",
 ]

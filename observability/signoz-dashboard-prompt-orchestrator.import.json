@@ -1,0 +1,86 @@
+{
+  "title": "PromptOrchestrator Overview",
+  "description": "Importable dashboard for PromptOrchestrator OTel metrics.",
+  "tags": ["signoz", "otel", "prompt-orchestrator"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "panels": [
+    {
+      "title": "Build Requests",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(prompt_build_requests_total{service_name=~\"$service\",deployment_environment=~\"$env\"}[5m]))",
+          "legendFormat": "build req/s"
+        }
+      ]
+    },
+    {
+      "title": "Build Errors",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(prompt_errors_total{service_name=~\"$service\",deployment_environment=~\"$env\"}[5m])) by (operation)",
+          "legendFormat": "{{operation}}"
+        }
+      ]
+    },
+    {
+      "title": "Build Latency P95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(prompt_build_latency_ms_bucket{service_name=~\"$service\",deployment_environment=~\"$env\"}[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "title": "Prompt Tokens P50",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(prompt_total_tokens_bucket{service_name=~\"$service\",deployment_environment=~\"$env\"}[5m])) by (le))",
+          "legendFormat": "p50"
+        }
+      ]
+    },
+    {
+      "title": "Safety Events",
+      "type": "barchart",
+      "targets": [
+        {
+          "expr": "sum(rate(prompt_safety_events_total{service_name=~\"$service\",deployment_environment=~\"$env\"}[5m])) by (severity)",
+          "legendFormat": "{{severity}}"
+        }
+      ]
+    },
+    {
+      "title": "Summary Latency P95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(prompt_summary_latency_ms_bucket{service_name=~\"$service\",deployment_environment=~\"$env\"}[5m])) by (le, provider))",
+          "legendFormat": "{{provider}} p95"
+        }
+      ]
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "name": "env",
+        "type": "custom",
+        "query": "dev,stage,prod",
+        "current": { "text": "dev", "value": "dev" }
+      },
+      {
+        "name": "service",
+        "type": "custom",
+        "query": "prompt-orchestrator",
+        "current": { "text": "prompt-orchestrator", "value": "prompt-orchestrator" }
+      }
+    ]
+  }
+}
