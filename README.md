@@ -8,7 +8,7 @@ Python module for structured prompt orchestration with:
 - configurable summary LLM with provider selection
 - TTL cache backends
 - optional RAG providers
-- safety checks (injection + contradiction heuristics)
+- safety checks (config-driven grouped threats, weighted groups, bilingual patterns, contradiction pairs)
 - prompt efficiency analyzer
 - token counting with tiktoken
 - centralized mutable config (Pydantic)
@@ -114,6 +114,29 @@ Use it as a panel/query blueprint in SigNoz to create a dashboard for prompt bui
 - `SummaryLLMConfig`: summary provider and model settings
 - `ModuleConfig`: full module config in one object
 - `ConfigStore`: mutable config holder (`get`, `set_config`, `as_dict`)
+
+## Safety Engine
+
+The safety layer is configured from [prompt_orchestrator/safety/threats.json](prompt_orchestrator/safety/threats.json). The catalog is grouped by threat family, and each family has its own weight so the final severity is still computed by the maximum matched threat score.
+
+What changed:
+
+- threat families are defined in `threats.json` and loaded at runtime
+- regular lexical rules live under `patterns`
+- contradiction rules live under `contradictions` and are matched as pairs
+- each family can include English and Russian analogs for the same threat family
+- duplicate patterns were removed from the catalog
+- each matched rule keeps its threat code in the report
+
+`SafetyReport` now includes:
+
+- `issues`: flat list of matched safety issues
+- `threat_groups`: grouped report by threat family
+- `severity`: overall severity (`none`, `low`, `medium`, `high`)
+- `threat_score`: weighted maximum score used for the final severity
+- `sanitized_prompt`: optional rewritten prompt when auto rewrite is enabled
+
+Each grouped report includes the threat family name, the number of matches, the matched codes, and the family weight. Use `result.safety.grouped_summary` or `result.safety.model_dump()` to inspect the grouped output.
 
 ### OrchestratorSettings.debug_mode
 
