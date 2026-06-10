@@ -14,6 +14,7 @@ from ..context.manager import PromptContextManager
 from ..context.state import PromptContextState
 from ..rag.base import RAGProvider
 from ..safety.engine import PromptSafetyEngine
+from ..safety.llm import SafetyLLMConfig
 from ..safety.report import SafetyReport
 from ..telemetry import init_telemetry, telemetry
 
@@ -54,7 +55,12 @@ class PromptOrchestrator:
             token_model=self.settings.token_model,
             token_encoding=self.settings.token_encoding,
         )
-        self.safety_engine = safety_engine or PromptSafetyEngine()
+        safety_llm_config = (
+            config_store.get_safety_llm()
+            if config_store
+            else SafetyLLMConfig()
+        )
+        self.safety_engine = safety_engine or PromptSafetyEngine(llm_config=safety_llm_config)
 
     def build_for_request(
         self,
@@ -106,7 +112,7 @@ class PromptOrchestrator:
 
                 safety = self.safety_engine.ensure_safe(
                     prompt=prompt,
-                    auto_rewrite=self.settings.safety_auto_rewrite,
+                    auto_rewrite=self.settings.security_checks_auto_rewrite,
                 )
                 final_prompt = safety.sanitized_prompt or prompt
 

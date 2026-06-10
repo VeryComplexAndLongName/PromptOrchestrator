@@ -30,7 +30,7 @@ def build_orchestrator():
             summary_trigger_messages=3,
             rag_limit=0,
             use_rag_default=False,
-            safety_auto_rewrite=True,
+            security_checks_auto_rewrite=True,
         ),
         summary_llm=SummaryLLMConfig(provider="none"),
     )

@@ -10,6 +10,7 @@ From the project root:
 python examples/basic_stats_example.py
 python examples/multi_turn_metrics_example.py
 python examples/safety_metrics_example.py
+python examples/safety_llm_bilingual_example.py
 python examples/rag_metrics_example.py
 python examples/summary_limits_example.py
 ```
@@ -19,6 +20,7 @@ python examples/summary_limits_example.py
 - basic_stats_example.py: single-request metrics (tokens/chars by section, efficiency, safety score).
 - multi_turn_metrics_example.py: aggregated KPI across multiple turns (average tokens, warnings, severity distribution).
 - safety_metrics_example.py: safe vs injection-like inputs and safety-engine behavior.
+- safety_llm_bilingual_example.py: RU/EN-only scenarios, compares heuristic safety vs LLM-merged safety (`heuristic_only` vs `max`).
 - rag_metrics_example.py: side-by-side comparison of use_rag=False vs use_rag=True on a real PyPI RAG database.
 - summary_limits_example.py: how summary appears and how sections are compacted when prompt limits are tight.
 

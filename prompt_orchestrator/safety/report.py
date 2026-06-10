@@ -39,6 +39,12 @@ class SafetyReport(BaseModel):
     severity: Severity = "none"
     threat_score: float = 0.0
     sanitized_prompt: str | None = None
+    llm_used: bool = False
+    llm_provider: str | None = None
+    llm_model: str | None = None
+    llm_score: float | None = None
+    llm_severity: Severity | None = None
+    llm_reasoning: str | None = None
 
     @property
     def is_safe(self) -> bool:
