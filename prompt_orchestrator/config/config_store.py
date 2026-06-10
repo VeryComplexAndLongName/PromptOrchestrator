@@ -38,5 +38,8 @@ class ConfigStore:
     def get_summary_llm(self):
         return self._config.summary_llm
 
+    def get_safety_llm(self):
+        return self._config.safety_llm
+
     def as_dict(self) -> dict[str, Any]:
         return self._config.model_dump(mode="json")

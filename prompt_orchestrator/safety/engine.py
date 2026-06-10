@@ -8,6 +8,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from ..llm.base_client import SummaryLLMClient
+from .llm import SafetyLLMAnalyzer, SafetyLLMConfig
 from .report import SafetyIssue, SafetyReport, SafetyThreatGroupReport
 
 
@@ -138,8 +140,13 @@ def _load_threat_groups() -> tuple[ThreatGroup, ...]:
 
 
 class PromptSafetyEngine:
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        llm_config: SafetyLLMConfig | None = None,
+        llm_client: SummaryLLMClient | None = None,
+    ) -> None:
         self._threat_groups = _load_threat_groups()
+        self._llm_analyzer = SafetyLLMAnalyzer(config=llm_config, client=llm_client)
 
     def _too_many_new_lines(self, prompt: str) -> bool:
         return prompt.count("\n") > 300
@@ -220,13 +227,57 @@ class PromptSafetyEngine:
                     )
                 )
 
-        severity = _severity_from_score(highest_score)
+        llm_result = self._llm_analyzer.analyze(prompt)
+        llm_used = llm_result is not None
+        llm_provider = self._llm_analyzer.config.provider if llm_used else None
+        llm_model = self._llm_analyzer.config.model if llm_used else None
+        llm_score = llm_result.score if llm_used else None
+        llm_severity = llm_result.severity if llm_used else None
+        llm_reasoning = llm_result.reasoning if llm_used else None
+
+        if llm_result is not None:
+            llm_issue = SafetyIssue(
+                code="LLM_SAFETY",
+                message=f"[llm_safety] {llm_result.reasoning or 'LLM safety assessment'}",
+                severity=llm_result.severity,
+                group="llm_safety",
+                pattern=", ".join(llm_result.categories) if llm_result.categories else None,
+                weight=llm_result.score,
+            )
+            issues.append(llm_issue)
+            threat_groups.append(
+                SafetyThreatGroupReport(
+                    name="llm_safety",
+                    description="LLM-based safety assessment",
+                    risk_level=llm_result.severity,
+                    weight=llm_result.score,
+                    issues=[llm_issue],
+                )
+            )
+
+        strategy = self._llm_analyzer.config.security_checks_llm_merge_strategy
+        if strategy == "llm_only" and llm_result is not None:
+            final_score = llm_result.score
+        elif strategy == "heuristic_only":
+            final_score = highest_score
+        elif llm_result is not None:
+            final_score = max(highest_score, llm_result.score)
+        else:
+            final_score = highest_score
+
+        severity = _severity_from_score(final_score)
 
         return SafetyReport(
             issues=issues,
             threat_groups=threat_groups,
             severity=severity,
-            threat_score=highest_score,
+            threat_score=final_score,
+            llm_used=llm_used,
+            llm_provider=llm_provider,
+            llm_model=llm_model,
+            llm_score=llm_score,
+            llm_severity=llm_severity,
+            llm_reasoning=llm_reasoning,
         )
 
     def sanitize(self, prompt: str) -> str:

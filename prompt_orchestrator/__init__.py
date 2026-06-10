@@ -18,6 +18,7 @@ from .orchestrator.orchestrator import OrchestratedPrompt, PromptOrchestrator
 from .rag.base import RAGProvider
 from .rag.no_rag import NoRAGProvider
 from .safety.engine import PromptSafetyEngine
+from .safety.llm import SafetyLLMConfig
 from .telemetry import init_telemetry, shutdown_telemetry
 from .tokenization import TokenCounter
 
@@ -45,6 +46,7 @@ __all__ = [
     "PromptOrchestratorFactory",
     "PromptSafetyEngine",
     "RAGProvider",
+    "SafetyLLMConfig",
     "SummaryLLM",
     "SummaryLLMConfig",
     "TokenCounter",

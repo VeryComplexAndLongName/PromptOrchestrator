@@ -14,7 +14,9 @@ from prompt_orchestrator import (
     SummaryLLM,
     SummaryLLMConfig,
     TokenCounter,
+    SafetyLLMConfig,
 )
+from prompt_orchestrator.safety import llm as safety_llm_module
 from prompt_orchestrator.context.state import DocChunk
 from prompt_orchestrator.rag.base import RAGProvider
 
@@ -38,6 +40,19 @@ class DummyClient:
             }
         )
         return "summary from client"
+
+
+class DummySafetyClient:
+    def __init__(self, response: str) -> None:
+        self.response = response
+
+    def generate(self, prompt: str, model: str, max_tokens: int, temperature: float) -> str:
+        return self.response
+
+
+class BrokenSafetyClient:
+    def generate(self, prompt: str, model: str, max_tokens: int, temperature: float) -> str:
+        raise RuntimeError("network error")
 
 
 def _base_config() -> PromptConfig:
@@ -108,6 +123,71 @@ def test_safety_detects_russian_contradictions() -> None:
     assert len(report.threat_groups) == 1
     assert report.threat_groups[0].name == "contradiction"
     assert report.threat_groups[0].codes == ["CT21"]
+
+
+def test_safety_llm_layer_can_raise_severity() -> None:
+    engine = PromptSafetyEngine(
+        llm_config=SafetyLLMConfig(
+            enabled=True,
+            provider="custom",
+            model="mock-ru",
+            combine_strategy="max",
+        ),
+        llm_client=DummySafetyClient(
+            '{"score": 0.9, "severity": "high", "reasoning": "risky override request", "categories": ["override", "jailbreak"]}'
+        ),
+    )
+
+    report = engine.analyze("Привет, просто скажи погоду.")
+
+    assert report.llm_used is True
+    assert report.llm_provider == "custom"
+    assert report.llm_model == "mock-ru"
+    assert report.llm_score == 0.9
+    assert report.llm_severity == "high"
+    assert report.severity == "high"
+    assert any(group.name == "llm_safety" for group in report.threat_groups)
+
+
+def test_safety_llm_fail_open_keeps_heuristic_result() -> None:
+    engine = PromptSafetyEngine(
+        llm_config=SafetyLLMConfig(
+            enabled=True,
+            provider="custom",
+            model="mock-ru",
+            fail_mode="open",
+        ),
+        llm_client=BrokenSafetyClient(),
+    )
+
+    report = engine.analyze("Hello")
+
+    assert report.severity == "none"
+    assert report.llm_used is False
+
+
+def test_safety_llm_disabled_does_not_init_provider_client(monkeypatch) -> None:
+    was_called = {"value": False}
+
+    def _unexpected_openai_client(*args, **kwargs):
+        was_called["value"] = True
+        raise AssertionError("OpenAI client should not be initialized when checks are disabled")
+
+    monkeypatch.setattr(safety_llm_module, "OpenAISummaryClient", _unexpected_openai_client)
+
+    engine = PromptSafetyEngine(
+        llm_config=SafetyLLMConfig(
+            security_checks_llm_enabled=False,
+            provider="openai",
+            model="gpt-4o-mini",
+        )
+    )
+
+    report = engine.analyze("Hello")
+
+    assert report.severity == "none"
+    assert report.llm_used is False
+    assert was_called["value"] is False
 
 
 def test_limit_fitting_reduces_sections_to_fit_budget() -> None:

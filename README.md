@@ -112,6 +112,7 @@ Use it as a panel/query blueprint in SigNoz to create a dashboard for prompt bui
 - `PromptConfig`: static prompt structure
 - `OrchestratorSettings`: runtime limits and behavior
 - `SummaryLLMConfig`: summary provider and model settings
+- `SafetyLLMConfig`: optional LLM-based safety analysis (provider/model selectable)
 - `ModuleConfig`: full module config in one object
 - `ConfigStore`: mutable config holder (`get`, `set_config`, `as_dict`)
 
@@ -135,6 +136,45 @@ What changed:
 - `severity`: overall severity (`none`, `low`, `medium`, `high`)
 - `threat_score`: weighted maximum score used for the final severity
 - `sanitized_prompt`: optional rewritten prompt when auto rewrite is enabled
+- `llm_used`: whether LLM safety analyzer was applied
+- `llm_provider` / `llm_model`: provider/model used for LLM safety pass
+- `llm_score` / `llm_severity`: raw LLM risk output before final merge
+- `llm_reasoning`: short textual explanation returned by LLM checker
+
+### Optional LLM Safety Layer
+
+You can enable an additional LLM-based safety pass on top of lexical rules.
+
+Default config:
+
+- `security_checks_llm_enabled=False` (opt-in)
+- `provider="ollama"`
+- `model="qwen2.5:3b"` (multilingual, works with Russian prompts)
+- `security_checks_llm_merge_strategy="max"` (take max risk between lexical + LLM)
+- `security_checks_llm_fail_mode="open"` (fallback to lexical-only if LLM check fails)
+- `security_checks_llm_auto_pull_ollama_model=True` (if model is missing, it is pulled from Ollama)
+
+Important behavior:
+
+- LLM provider clients are initialized lazily.
+- If `security_checks_llm_enabled=False`, no LLM provider client is created.
+
+Example:
+
+```python
+from prompt_orchestrator import ModuleConfig, SafetyLLMConfig
+
+cfg = ModuleConfig(
+    prompt=...,  # PromptConfig
+    safety_llm=SafetyLLMConfig(
+        security_checks_llm_enabled=True,
+        provider="ollama",  # or "openai" / "custom" / "none"
+        model="qwen2.5:3b",
+        security_checks_llm_merge_strategy="max",  # max | llm_only | heuristic_only
+        security_checks_llm_fail_mode="open",  # open | closed
+    ),
+)
+```
 
 Each grouped report includes the threat family name, the number of matches, the matched codes, and the family weight. Use `result.safety.grouped_summary` or `result.safety.model_dump()` to inspect the grouped output.
 
@@ -158,6 +198,11 @@ In simulations, use `--debug` flag:
 python simulations/console_pipeline_test.py  # Prompts for debug mode
 python simulations/conversation_simulation_test.py --debug  # Enable debug headers
 ```
+
+Security rewrite toggle in `OrchestratorSettings`:
+
+- `security_checks_auto_rewrite=True`: rewrite prompt when safety severity is `medium` or `high`
+- Legacy alias `safety_auto_rewrite` is still accepted for backward compatibility
 
 ## Supported Summary Providers
 

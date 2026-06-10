@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import AliasChoices, BaseModel, Field
 
 
 class OrchestratorSettings(BaseModel):
@@ -14,7 +14,13 @@ class OrchestratorSettings(BaseModel):
     rag_limit: int = 5
     use_rag_default: bool = True
     max_summary_chars: int = 2000
-    safety_auto_rewrite: bool = True
+    security_checks_auto_rewrite: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "security_checks_auto_rewrite",
+            "safety_auto_rewrite",
+        ),
+    )
     token_chars_ratio: float = 4.0
 
     section_priority: list[str] = Field(
