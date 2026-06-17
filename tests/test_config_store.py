@@ -184,3 +184,43 @@ def test_factory_skips_probe_fallback_when_disabled(monkeypatch) -> None:
     )
 
     assert store.get_settings().max_prompt_tokens == 1000
+
+
+def test_factory_replaces_max_prompt_tokens_with_ollama_context_window(monkeypatch) -> None:
+    cfg = _module_config()
+    cfg.summary_llm.provider = "ollama"
+    cfg.settings.token_model = "qwen3-32b"
+    cfg.settings.max_prompt_tokens = 1000
+    store = ConfigStore(cfg)
+
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_ollama_context_window",
+        lambda config, model: 32768,
+    )
+
+    PromptOrchestratorFactory.from_config_store(
+        store,
+        summary_llm=SummaryLLM(config=SummaryLLMConfig(provider="none")),
+    )
+
+    assert store.get_settings().max_prompt_tokens == 32768
+
+
+def test_factory_keeps_config_max_prompt_tokens_when_ollama_window_missing(monkeypatch) -> None:
+    cfg = _module_config()
+    cfg.summary_llm.provider = "ollama"
+    cfg.settings.token_model = "qwen3-32b"
+    cfg.settings.max_prompt_tokens = 1000
+    store = ConfigStore(cfg)
+
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_ollama_context_window",
+        lambda config, model: None,
+    )
+
+    PromptOrchestratorFactory.from_config_store(
+        store,
+        summary_llm=SummaryLLM(config=SummaryLLMConfig(provider="none")),
+    )
+
+    assert store.get_settings().max_prompt_tokens == 1000

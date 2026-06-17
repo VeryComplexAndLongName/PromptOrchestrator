@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from prompt_orchestrator.llm.openai_client import (
     OpenAIConfig,
+    discover_openai_context_window,
     discover_openai_context_window_by_probe,
 )
 
@@ -26,6 +27,28 @@ class _FakeChat:
 class _FakeClient:
     def __init__(self, limit: int) -> None:
         self.chat = _FakeChat(limit=limit)
+
+
+class _FakeModelMeta:
+    def __init__(self, model_id: str) -> None:
+        self.id = model_id
+
+
+class _FakeModelsApi:
+    def retrieve(self, model: str):
+        _ = model
+        return _FakeModelMeta(model_id="without-window")
+
+    def list(self):
+        class _List:
+            data = [_FakeModelMeta(model_id="qwen3-32b")]
+
+        return _List()
+
+
+class _FakeOpenAIClientNoWindow:
+    def __init__(self) -> None:
+        self.models = _FakeModelsApi()
 
 
 def test_probe_returns_none_on_invalid_params() -> None:
@@ -89,3 +112,52 @@ def test_probe_returns_best_known_value_when_attempt_budget_is_exhausted(monkeyp
     )
 
     assert result == 26000
+
+
+def test_discover_openai_context_window_falls_back_to_vllm_endpoint(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "prompt_orchestrator.llm.openai_client._build_openai_client",
+        lambda config: _FakeOpenAIClientNoWindow(),
+    )
+
+    def _fake_http_json(endpoint, method, payload, timeout):
+        _ = method
+        _ = payload
+        _ = timeout
+        if endpoint.endswith("/v1/internal/model/info"):
+            return {"max_model_len": 32768}
+        return None
+
+    monkeypatch.setattr("prompt_orchestrator.llm.openai_client._http_json", _fake_http_json)
+
+    result = discover_openai_context_window(
+        config=OpenAIConfig(api_key="x", base_url="http://localhost:8000/v1"),
+        model="qwen3-32b",
+    )
+
+    assert result == 32768
+
+
+def test_discover_openai_context_window_falls_back_to_ollama_endpoint(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "prompt_orchestrator.llm.openai_client._build_openai_client",
+        lambda config: _FakeOpenAIClientNoWindow(),
+    )
+
+    def _fake_http_json(endpoint, method, payload, timeout):
+        _ = method
+        _ = timeout
+        if endpoint.endswith("/v1/internal/model/info"):
+            return None
+        if endpoint.endswith("/api/show") and isinstance(payload, dict) and payload.get("name") == "qwen3-32b":
+            return {"parameters": {"num_ctx": 65536}}
+        return None
+
+    monkeypatch.setattr("prompt_orchestrator.llm.openai_client._http_json", _fake_http_json)
+
+    result = discover_openai_context_window(
+        config=OpenAIConfig(api_key="x", base_url="http://localhost:11434/v1"),
+        model="qwen3-32b",
+    )
+
+    assert result == 65536

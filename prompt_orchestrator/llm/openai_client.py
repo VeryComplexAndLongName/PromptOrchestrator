@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Mapping
+from urllib import request
 
 from pydantic import BaseModel
 
@@ -97,6 +100,17 @@ def discover_openai_context_window(config: OpenAIConfig, model: str) -> int | No
     except Exception:
         pass
 
+    vllm_window = _discover_vllm_context_window(config.base_url)
+    if vllm_window is not None:
+        return vllm_window
+
+    ollama_window = _discover_ollama_context_window_from_base_url(
+        base_url=config.base_url,
+        model=model,
+    )
+    if ollama_window is not None:
+        return ollama_window
+
     return None
 
 
@@ -185,3 +199,113 @@ def _build_openai_client(config: OpenAIConfig):
         )
     except Exception:
         return None
+
+
+def _discover_vllm_context_window(base_url: str | None) -> int | None:
+    for endpoint in _candidate_vllm_info_endpoints(base_url):
+        payload = _http_json(endpoint=endpoint, method="GET", payload=None, timeout=10)
+        value = _parse_positive_int(payload.get("max_model_len")) if payload else None
+        if value is not None:
+            return value
+    return None
+
+
+def _discover_ollama_context_window_from_base_url(base_url: str | None, model: str) -> int | None:
+    for endpoint in _candidate_ollama_show_endpoints(base_url):
+        payload = _http_json(
+            endpoint=endpoint,
+            method="POST",
+            payload={"name": model},
+            timeout=10,
+        )
+        if not payload:
+            continue
+
+        parameters = payload.get("parameters")
+        if isinstance(parameters, Mapping):
+            value = _parse_positive_int(parameters.get("num_ctx"))
+            if value is not None:
+                return value
+
+        if isinstance(parameters, str):
+            match = re.search(r"num_ctx\s+(\d+)", parameters)
+            if match:
+                return int(match.group(1))
+
+        value = _parse_positive_int(payload.get("num_ctx"))
+        if value is not None:
+            return value
+
+    return None
+
+
+def _candidate_vllm_info_endpoints(base_url: str | None) -> list[str]:
+    if not base_url:
+        return []
+
+    clean = base_url.rstrip("/")
+    endpoints = [f"{clean}/v1/internal/model/info"]
+    if clean.endswith("/v1"):
+        endpoints.append(f"{clean}/internal/model/info")
+
+    return _unique(endpoints)
+
+
+def _candidate_ollama_show_endpoints(base_url: str | None) -> list[str]:
+    if not base_url:
+        return []
+
+    clean = base_url.rstrip("/")
+    endpoints = [f"{clean}/api/show"]
+    if clean.endswith("/v1"):
+        endpoints.append(f"{clean[:-3].rstrip('/')}/api/show")
+
+    return _unique(endpoints)
+
+
+def _http_json(
+    endpoint: str,
+    method: str,
+    payload: dict[str, str] | None,
+    timeout: int,
+) -> dict[str, object] | None:
+    data = None
+    headers: dict[str, str] = {}
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    req = request.Request(endpoint, data=data, headers=headers, method=method)
+    try:
+        with request.urlopen(req, timeout=timeout) as response:
+            body = response.read().decode("utf-8")
+            parsed = json.loads(body)
+            if isinstance(parsed, dict):
+                return parsed
+            return None
+    except Exception:
+        return None
+
+
+def _parse_positive_int(value: object) -> int | None:
+    if isinstance(value, int) and value > 0:
+        return value
+
+    if isinstance(value, str):
+        stripped = value.strip()
+        if stripped.isdigit():
+            number = int(stripped)
+            return number if number > 0 else None
+
+    return None
+
+
+def _unique(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result

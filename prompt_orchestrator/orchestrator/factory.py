@@ -5,6 +5,7 @@ from ..cache.local_ttl import LocalTTLCacheBackend
 from ..config.config_store import ConfigStore
 from ..context.manager import PromptContextManager
 from ..llm.base_client import SummaryLLMClient
+from ..llm.ollama_client import discover_ollama_context_window
 from ..llm.openai_client import (
     discover_openai_context_window,
     discover_openai_context_window_by_probe,
@@ -41,6 +42,14 @@ class PromptOrchestratorFactory:
                     step=settings.openai_context_probe_step,
                     max_attempts=settings.openai_context_probe_max_attempts,
                 )
+            if discovered_window is not None:
+                settings.max_prompt_tokens = discovered_window
+
+        if summary_llm_config.provider == "ollama":
+            discovered_window = discover_ollama_context_window(
+                config=summary_llm_config.ollama,
+                model=settings.token_model,
+            )
             if discovered_window is not None:
                 settings.max_prompt_tokens = discovered_window
 
