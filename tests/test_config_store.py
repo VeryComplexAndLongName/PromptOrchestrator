@@ -91,3 +91,96 @@ def test_orchestrator_settings_accepts_legacy_safety_auto_rewrite_alias() -> Non
     settings = OrchestratorSettings.model_validate({"safety_auto_rewrite": False})
 
     assert settings.security_checks_auto_rewrite is False
+
+
+def test_factory_replaces_max_prompt_tokens_with_openai_context_window(monkeypatch) -> None:
+    cfg = _module_config()
+    cfg.summary_llm.provider = "openai"
+    cfg.settings.token_model = "gpt-4o-mini"
+    cfg.settings.max_prompt_tokens = 1000
+    store = ConfigStore(cfg)
+
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_openai_context_window",
+        lambda config, model: 128000,
+    )
+
+    PromptOrchestratorFactory.from_config_store(
+        store,
+        summary_llm=SummaryLLM(config=SummaryLLMConfig(provider="none")),
+    )
+
+    assert store.get_settings().max_prompt_tokens == 128000
+
+
+def test_factory_keeps_config_max_prompt_tokens_when_openai_context_window_missing(monkeypatch) -> None:
+    cfg = _module_config()
+    cfg.summary_llm.provider = "openai"
+    cfg.settings.token_model = "gpt-4o-mini"
+    cfg.settings.max_prompt_tokens = 1000
+    store = ConfigStore(cfg)
+
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_openai_context_window",
+        lambda config, model: None,
+    )
+
+    PromptOrchestratorFactory.from_config_store(
+        store,
+        summary_llm=SummaryLLM(config=SummaryLLMConfig(provider="none")),
+    )
+
+    assert store.get_settings().max_prompt_tokens == 1000
+
+
+def test_factory_uses_probe_fallback_when_enabled(monkeypatch) -> None:
+    cfg = _module_config()
+    cfg.summary_llm.provider = "openai"
+    cfg.settings.token_model = "qwen3-32b"
+    cfg.settings.max_prompt_tokens = 1000
+    cfg.settings.openai_context_probe_enabled = True
+    cfg.settings.openai_context_probe_start_size = 20000
+    cfg.settings.openai_context_probe_step = 2000
+    cfg.settings.openai_context_probe_max_attempts = 10
+    store = ConfigStore(cfg)
+
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_openai_context_window",
+        lambda config, model: None,
+    )
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_openai_context_window_by_probe",
+        lambda config, model, start_size, step, max_attempts: 36000,
+    )
+
+    PromptOrchestratorFactory.from_config_store(
+        store,
+        summary_llm=SummaryLLM(config=SummaryLLMConfig(provider="none")),
+    )
+
+    assert store.get_settings().max_prompt_tokens == 36000
+
+
+def test_factory_skips_probe_fallback_when_disabled(monkeypatch) -> None:
+    cfg = _module_config()
+    cfg.summary_llm.provider = "openai"
+    cfg.settings.token_model = "qwen3-32b"
+    cfg.settings.max_prompt_tokens = 1000
+    cfg.settings.openai_context_probe_enabled = False
+    store = ConfigStore(cfg)
+
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_openai_context_window",
+        lambda config, model: None,
+    )
+    monkeypatch.setattr(
+        "prompt_orchestrator.orchestrator.factory.discover_openai_context_window_by_probe",
+        lambda config, model, start_size, step, max_attempts: 36000,
+    )
+
+    PromptOrchestratorFactory.from_config_store(
+        store,
+        summary_llm=SummaryLLM(config=SummaryLLMConfig(provider="none")),
+    )
+
+    assert store.get_settings().max_prompt_tokens == 1000
