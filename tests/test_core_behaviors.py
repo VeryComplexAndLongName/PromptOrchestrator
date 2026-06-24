@@ -4,8 +4,8 @@ import time
 
 from prompt_orchestrator import (
     LocalTTLCacheBackend,
-    NoRAGProvider,
     OllamaSummaryClient,
+    OutputContractConfig,
     OrchestratorSettings,
     PromptConfig,
     PromptContextManager,
@@ -15,6 +15,7 @@ from prompt_orchestrator import (
     SummaryLLMConfig,
     TokenCounter,
     SafetyLLMConfig,
+    ToolCallingPolicyConfig,
 )
 from prompt_orchestrator.safety import llm as safety_llm_module
 from prompt_orchestrator.context.state import DocChunk
@@ -64,6 +65,49 @@ def _base_config() -> PromptConfig:
         output_format="Markdown",
         examples=["Q: hi A: hello"],
     )
+
+
+def test_prompt_config_enterprise_defaults() -> None:
+    cfg = _base_config()
+
+    assert cfg.response_language == "ru"
+    assert cfg.output_contract.strict is True
+    assert cfg.output_contract.mode == "json_markdown"
+    assert cfg.tool_calling_policy.mode == "allow"
+    assert cfg.tool_calling_policy.max_calls == 8
+
+
+def test_prompt_config_renders_language_output_and_tool_policy() -> None:
+    cfg = PromptConfig(
+        system_prompt="You are a helpful assistant.",
+        role="Engineer",
+        task="Answer questions clearly.",
+        constraints=["No hallucinations"],
+        output_format="Markdown",
+        examples=["Q: hi A: hello"],
+        response_language="ru",
+        output_contract=OutputContractConfig(
+            mode="json",
+            strict=True,
+            schema_hint='{"answer": "str", "citations": ["str"]}',
+        ),
+        tool_calling_policy=ToolCallingPolicyConfig(
+            mode="allowlist",
+            max_calls=4,
+            allowed_tools=["retrieve_context", "build_attribution"],
+            require_json_arguments=True,
+            require_tool_result_ack=True,
+        ),
+    )
+
+    rendered = cfg.render_static_header(include_header=True)
+    assert "Response Language:" in rendered
+    assert "Russian (ru)" in rendered
+    assert "Output Contract:" in rendered
+    assert "mode=json; enforcement=strict" in rendered
+    assert "Tool Calling Policy:" in rendered
+    assert "mode=allowlist; max_calls=4" in rendered
+    assert "allowed_tools=retrieve_context, build_attribution" in rendered
 
 
 def test_local_ttl_cache_expires_items() -> None:

@@ -116,6 +116,46 @@ Use it as a panel/query blueprint in SigNoz to create a dashboard for prompt bui
 - `ModuleConfig`: full module config in one object
 - `ConfigStore`: mutable config holder (`get`, `set_config`, `as_dict`)
 
+### Enterprise Prompt Controls
+
+`PromptConfig` now includes enterprise-level controls for answer governance:
+
+- `response_language`: `ru | en | auto` (default: `ru`)
+- `output_contract`: strict output contract configuration
+    - default `mode="json_markdown"`
+    - default `strict=True`
+    - default schema hint for enterprise review payload
+- `tool_calling_policy`: tool usage policy for downstream tool-aware agents
+    - `mode`: `allow | deny | allowlist` (default: `allow`)
+    - `max_calls` (default: `8`)
+    - `allowed_tools` for allowlist mode
+    - JSON args/result acknowledgement guard flags
+
+Example:
+
+```python
+from prompt_orchestrator import PromptConfig, OutputContractConfig, ToolCallingPolicyConfig
+
+cfg = PromptConfig(
+        system_prompt="Вы корпоративный ассистент.",
+        role="Ревьюер документации",
+        task="Сформируйте проверяемый ответ на русском.",
+        constraints=["Не придумывайте факты", "Всегда давайте ссылки/цитаты"],
+        output_format="Markdown",
+        examples=[],
+        response_language="ru",
+        output_contract=OutputContractConfig(
+                mode="json_markdown",
+                strict=True,
+                schema_hint='{"summary":"str","findings":["str"],"risks":["str"],"actions":["str"],"citations":["str"]}',
+        ),
+        tool_calling_policy=ToolCallingPolicyConfig(
+                mode="allow",
+                max_calls=8,
+        ),
+)
+```
+
 ## Safety Engine
 
 The safety layer is configured from [prompt_orchestrator/safety/threats.json](prompt_orchestrator/safety/threats.json). The catalog is grouped by threat family, and each family has its own weight so the final severity is still computed by the maximum matched threat score.
