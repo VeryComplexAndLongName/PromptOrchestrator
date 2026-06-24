@@ -6,7 +6,7 @@ from .cache.base import CacheBackend, NoCacheBackend
 from .cache.local_ttl import LocalTTLCacheBackend
 from .config.config_store import ConfigStore
 from .config.module_config import ModuleConfig
-from .config.prompt_config import PromptConfig
+from .config.prompt_config import OutputContractConfig, PromptConfig, ToolCallingPolicyConfig
 from .config.settings import OrchestratorSettings
 from .context.manager import PromptContextManager
 from .context.state import DocChunk, Message, PromptContextState
@@ -35,6 +35,7 @@ __all__ = [
     "OllamaSummaryClient",
     "OpenAIConfig",
     "OpenAISummaryClient",
+    "OutputContractConfig",
     "OrchestratedPrompt",
     "OrchestratorSettings",
     "PromptAnalyzer",
@@ -50,6 +51,7 @@ __all__ = [
     "SummaryLLM",
     "SummaryLLMConfig",
     "TokenCounter",
+    "ToolCallingPolicyConfig",
     "init_telemetry",
     "shutdown_telemetry",
 ]

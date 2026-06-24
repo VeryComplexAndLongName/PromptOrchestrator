@@ -1,5 +1,45 @@
 # Changelog
 
+## [0.1.9] - 2026-06-24
+
+### Summary
+
+Enterprise-level answer governance was added directly to `PromptConfig`.
+
+### Changes
+
+1. **Response language control** (`prompt_orchestrator/config/prompt_config.py`)
+- Added `response_language: ru | en | auto`
+- Default is `ru` for Russian-first enterprise flows
+
+2. **Strict output contract** (`prompt_orchestrator/config/prompt_config.py`)
+- Added `OutputContractConfig`
+- Added `output_contract` field in `PromptConfig`
+- Default mode is `json_markdown`
+- Default strictness is enabled (`strict=True`)
+
+3. **Tool-calling policy** (`prompt_orchestrator/config/prompt_config.py`)
+- Added `ToolCallingPolicyConfig`
+- Added `tool_calling_policy` field in `PromptConfig`
+- Default policy allows tool usage (`mode="allow"`)
+- Added per-policy limits and guard flags (`max_calls`, JSON args/result acknowledgement)
+
+4. **Prompt rendering updates**
+- `render_static_header()` now includes:
+    - Response Language
+    - Output Contract
+    - Tool Calling Policy
+
+5. **Public API exports**
+- Added exports in:
+    - `prompt_orchestrator/config/__init__.py`
+    - `prompt_orchestrator/__init__.py`
+    for `OutputContractConfig` and `ToolCallingPolicyConfig`
+
+6. **Docs and tests**
+- README updated with enterprise configuration examples
+- Core tests extended to validate defaults and rendering
+
 ## [0.1.0] - 2026-05-29
 
 ### Summary

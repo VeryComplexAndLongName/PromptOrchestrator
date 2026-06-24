@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "prompt-orchestrator"
-version = "0.1.7"
+version = "0.1.9"
 description = "Structured prompt orchestration with cache, safety, and analyzer layers"
 readme = { file = "README.md", content-type = "text/markdown" }
 requires-python = ">=3.10"
